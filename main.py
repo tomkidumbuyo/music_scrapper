@@ -1,6 +1,14 @@
 from bs4 import BeautifulSoup
+from pytube import YouTube
 import requests
+import urllib
 import re
+import os
+from urllib.request import urlopen,unquote
+from urllib.parse import urlparse, parse_qs
+import youtube_dl
+
+
 
 # FIRST SCRAPE LYRICS FROM GENIUS
 # first go to genius.com and scrape lyrics information from the site
@@ -48,8 +56,13 @@ def read_lyrics(page_url):
         artist = artist[0].text
         if len(featuring) > 0:
             featuring = featuring[0].text
+        else:
+            featuring = ""
+
         if len(producer) > 0:
             producer = producer[0].text
+        else:
+            producer = ""
 
         print(tittle)
         print(artist)
@@ -57,6 +70,48 @@ def read_lyrics(page_url):
         print(producer)
         # print(lyrics)
 
+        folder_name = "songs/"+artist.replace(" ","_")+"_"+tittle.replace(" ","_")
+
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+
+        f = open(folder_name+"/lyrics.txt", "w")
+        f.write(text_lyrics.replace("<br>","\n").replace("<br/>","\n"))
+        f.close()
+
+        q = tittle+" "+artist
+        if(featuring):
+            q+=" ft "+featuring
+        
+
+        print(q)
+
+        query_string = urllib.parse.urlencode({"search_query" : q})
+        html_content = urllib.request.urlopen("http://www.youtube.com/results?" + query_string)
+        search_results = re.findall(r'href=\"\/watch\?v=(.{11})', html_content.read().decode())
+        
+        url = "http://www.youtube.com/watch?v=" + search_results[0]
+
+        print(url)
+
+        print(folder_name+'%(extractor_key)s/%(extractor)s-%(id)s-%(title)s.%(ext)s')
+        ydl_opts = {
+            'format': 'mp4/best',
+            'outtmpl': folder_name+'/%(extractor_key)s/%(extractor)s-%(id)s-%(title)s.%(ext)s',
+        }
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': folder_name+'/%(extractor_key)s/%(extractor)s-%(id)s-%(title)s.%(ext)s',
+        }
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        
+
+        print(search_results)
         print('------------------------')
 
 
@@ -78,4 +133,4 @@ def get_page_links(page_url):
 def clean_lyrics(dirty_lyrics):
     print(dirty_lyrics)
 
-scrap_page("https://genius.com/Jala-brat-and-buba-corelli-kamikaza-lyrics")
+scrap_page("https://genius.com/")
